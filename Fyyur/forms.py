@@ -27,6 +27,7 @@ class VenueForm(Form):
         'state', validators=[DataRequired()],
         choices=[
             ('AL', 'AL'),
+            ('Beijing', 'Peking'),
             ('AK', 'AK'),
             ('AZ', 'AZ'),
             ('AR', 'AR'),

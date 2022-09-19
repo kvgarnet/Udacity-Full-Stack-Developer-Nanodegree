@@ -9,7 +9,7 @@ from flask import Flask, render_template, request, Response, flash, redirect, ur
 from flask_moment import Moment
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
-import logging
+import logging,sys
 from logging import Formatter, FileHandler
 from flask_wtf import Form
 from forms import *
@@ -61,7 +61,6 @@ class Venue(db.Model):
       return f'<My Venue {self.id}: {self.name}>'
 class Artist(db.Model):
     __tablename__ = 'Artist'
-
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String)
     city = db.Column(db.String(120))
@@ -241,12 +240,28 @@ def create_venue_form():
 def create_venue_submission():
   # TODO: insert form data as a new Venue record in the db, instead
   # TODO: modify data to be the data object returned from db insertion
+  try:
+    venue = Venue()
+    venue.name = request.form['name']
+    venue.city = request.form['city']
+    venue.state = request.form['state']
+    venue.address = request.form['address']
+    venue.phone = request.form['phone']
+    venue.genres = request.form.getlist('genres')
+    venue.facebook_link = request.form['facebook_link']
 
-  # on successful db insert, flash success
-  flash('Venue ' + request.form['name'] + ' was successfully listed!')
-  # TODO: on unsuccessful db insert, flash an error instead.
-  # e.g., flash('An error occurred. Venue ' + data.name + ' could not be listed.')
-  # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/
+    db.session.add(venue)
+    db.session.commit()
+    # on successful db insert, flash success
+    flash('Venue ' + request.form['name'] + ' was successfully listed!')
+  except:
+      db.session.rollback()
+      print(sys.exc_info())
+      # TODO: on unsuccessful db insert, flash an error instead.
+      # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/
+      flash('An error occurred: Venue ' + request.form['name'] + ' could not be listed')
+  finally:
+    db.session.close()
   return render_template('pages/home.html')
 
 @app.route('/venues/<venue_id>', methods=['DELETE'])
