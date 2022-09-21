@@ -27,7 +27,7 @@ class VenueForm(Form):
         'state', validators=[DataRequired()],
         choices=[
             ('AL', 'AL'),
-            ('Beijing', 'Peking'),
+            ('Peking', 'Peking'),
             ('AK', 'AK'),
             ('AZ', 'AZ'),
             ('AR', 'AR'),
@@ -140,6 +140,7 @@ class ArtistForm(Form):
         'state', validators=[DataRequired()],
         choices=[
             ('AL', 'AL'),
+            ('Peking', 'Peking'),
             ('AK', 'AK'),
             ('AZ', 'AZ'),
             ('AR', 'AR'),

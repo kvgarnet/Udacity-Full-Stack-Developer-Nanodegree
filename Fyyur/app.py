@@ -8,7 +8,7 @@ import babel
 from flask import Flask, render_template, request, Response, flash, redirect, url_for
 from flask_moment import Moment
 from flask_migrate import Migrate
-from flask_sqlalchemy import SQLAlchemy
+from flask_sqlalchemy import SQLAlchemy,sqlalchemy
 import logging,sys
 from logging import Formatter, FileHandler
 from flask_wtf import Form
@@ -22,7 +22,7 @@ moment = Moment(app)
 app.config.from_object('config')
 db = SQLAlchemy(app)
 
-migrate = Migrate(app, db)
+migrate = Migrate(app, db,compare_type=True)
 # TODO: connect to a local postgresql database
 #  kv: added config in config.py,verify with below
 # print(f"my sqlalchemy dburl is {app.config['SQLALCHEMY_DATABASE_URI']}" )
@@ -54,22 +54,23 @@ class Venue(db.Model):
     genres = db.Column(db.ARRAY(db.String(120)))
     website = db.Column(db.String(500))
     seeking_talent = db.Column(db.Boolean, nullable=False, default=False)
-    seeking_description = db.Column(db.Boolean, default=False)
-    artists=db.relationship('Artists',secondary=Show,backref=db.backref('venues'),lazy=True)
+    seeking_description = db.Column(db.String(500))
+
+    artists=db.relationship('Artist',secondary=Show,backref=db.backref('venues'),lazy=True)
 
     def __repr__(self):
       return f'<My Venue {self.id}: {self.name}>'
 class Artist(db.Model):
     __tablename__ = 'Artist'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
+    name = db.Column(db.String,unique=True)
     city = db.Column(db.String(120))
     state = db.Column(db.String(120))
     phone = db.Column(db.String(120))
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
-    genres = db.Column(db.ARRAY(db.String(120)))
+    genres = db.Column(db.ARRAY(db.String(130)))
     website = db.Column(db.String(200))
     seeking_venue = db.Column(db.Boolean)
     seeking_description = db.Column(db.String(500))
@@ -106,28 +107,55 @@ def index():
 def venues():
   # TODO: replace with real venues data.
   #       num_upcoming_shows should be aggregated based on number of upcoming shows per venue.
-  data=[{
-    "city": "San Francisco",
-    "state": "CA",
-    "venues": [{
-      "id": 1,
-      "name": "The Musical Hop",
-      "num_upcoming_shows": 0,
-    }, {
-      "id": 3,
-      "name": "Park Square Live Music & Coffee",
-      "num_upcoming_shows": 1,
-    }]
-  }, {
-    "city": "New York",
-    "state": "NY",
-    "venues": [{
-      "id": 2,
-      "name": "The Dueling Pianos Bar",
-      "num_upcoming_shows": 0,
-    }]
-  }]
-  return render_template('pages/venues.html', areas=data);
+  # data=[{
+  #   "city": "San Francisco",
+  #   "state": "CA",
+  #   "venues": [{
+  #     "id": 1,
+  #     "name": "The Musical Hop",
+  #     "num_upcoming_shows": 0,
+  #   }, {
+  #     "id": 3,
+  #     "name": "Park Square Live Music & Coffee",
+  #     "num_upcoming_shows": 1,
+  #   }]
+  # }, {
+  #   "city": "New York",
+  #   "state": "NY",
+  #   "venues": [{
+  #     "id": 2,
+  #     "name": "The Dueling Pianos Bar",
+  #     "num_upcoming_shows": 0,
+  #   }]
+  # }]
+  # data contains city,state and venues, where venues list contains venue's id and name
+  # grouped by city,state
+  data = []
+  try:
+    # normal query will introduce duplicate issue if venues are in same city
+    # areas = Venue.query.order_by(Venue.state, Venue.city).all()
+    # use distinct to filter out duplicate city,state, group them
+    areas = Venue.query.distinct(Venue.city, Venue.state).all()
+    # gather id and name in one venues list based on city,state
+    for location in areas:
+      venuesQuery=Venue.query.filter_by(city=location.city).filter_by(state=location.state).all()
+      venues=[]
+      for venue in venuesQuery:
+        venues.append({
+          "id": venue.id,
+          "name": venue.name
+        })
+      # append venues list into data list
+      data.append({
+        "city": location.city,
+        "state": location.state,
+        "venues": venues
+      })
+    return render_template('pages/venues.html', areas=data);
+    # return render_template('pages/venues.html', areas=db.session.query(Venue).all());
+  except:
+    flash('An error occurred. Cannot display venues')
+    return redirect(url_for('index'))
 
 @app.route('/venues/search', methods=['POST'])
 def search_venues():
@@ -226,6 +254,7 @@ def show_venue(venue_id):
     "upcoming_shows_count": 1,
   }
   data = list(filter(lambda d: d['id'] == venue_id, [data1, data2, data3]))[0]
+  # data = Venue.query.filter_by(id=venue_id).all()[0]
   return render_template('pages/show_venue.html', venue=data)
 
 #  Create Venue
@@ -254,6 +283,7 @@ def create_venue_submission():
     db.session.commit()
     # on successful db insert, flash success
     flash('Venue ' + request.form['name'] + ' was successfully listed!')
+    return render_template('pages/home.html')
   except:
       db.session.rollback()
       print(sys.exc_info())
@@ -262,7 +292,6 @@ def create_venue_submission():
       flash('An error occurred: Venue ' + request.form['name'] + ' could not be listed')
   finally:
     db.session.close()
-  return render_template('pages/home.html')
 
 @app.route('/venues/<venue_id>', methods=['DELETE'])
 def delete_venue(venue_id):
@@ -278,17 +307,24 @@ def delete_venue(venue_id):
 @app.route('/artists')
 def artists():
   # TODO: replace with real data returned from querying the database
-  data=[{
-    "id": 4,
-    "name": "Guns N Petals",
-  }, {
-    "id": 5,
-    "name": "Matt Quevedo",
-  }, {
-    "id": 6,
-    "name": "The Wild Sax Band",
-  }]
-  return render_template('pages/artists.html', artists=data)
+  # data=[{
+  #   "id": 4,
+  #   "name": "Guns N Petals",
+  # }, {
+  #   "id": 5,
+  #   "name": "Matt Quevedo",
+  # }, {
+  #   "id": 6,
+  #   "name": "The Wild Sax Band",
+  # }]
+  data = []
+  try:
+    # data=Artist.query.all()
+    data=db.session.query(Artist).all()
+    return render_template('pages/artists.html', artists=data)
+  except:
+    flash('An error occurred. Cannot display artists')
+    return redirect(url_for('index'))
 
 @app.route('/artists/search', methods=['POST'])
 def search_artists():
@@ -310,7 +346,7 @@ def show_artist(artist_id):
   # shows the artist page with the given artist_id
   # TODO: replace with real artist data from the artist table, using artist_id
   data1={
-    "id": 4,
+    "id": 2,
     "name": "Guns N Petals",
     "genres": ["Rock n Roll"],
     "city": "San Francisco",
@@ -352,7 +388,7 @@ def show_artist(artist_id):
     "upcoming_shows_count": 0,
   }
   data3={
-    "id": 6,
+    "id": 3,
     "name": "The Wild Sax Band",
     "genres": ["Jazz", "Classical"],
     "city": "San Francisco",
@@ -380,8 +416,10 @@ def show_artist(artist_id):
     "past_shows_count": 0,
     "upcoming_shows_count": 3,
   }
-  data = list(filter(lambda d: d['id'] == artist_id, [data1, data2, data3]))[0]
-  return render_template('pages/show_artist.html', artist=data)
+  single_artist = list(filter(lambda d: d['id'] == artist_id, [data1, data2, data3]))[0]
+  # single_artist=Artist.query.filter_by(id=artist_id).all()[0]
+  # single_artist=Artist.query.get(artist_id)
+  return render_template('pages/show_artist.html', artist=single_artist)
 
 #  Update
 #  ----------------------------------------------------------------
@@ -450,11 +488,46 @@ def create_artist_submission():
   # called upon submitting the new artist listing form
   # TODO: insert form data as a new Venue record in the db, instead
   # TODO: modify data to be the data object returned from db insertion
-
-  # on successful db insert, flash success
-  flash('Artist ' + request.form['name'] + ' was successfully listed!')
-  # TODO: on unsuccessful db insert, flash an error instead.
-  # e.g., flash('An error occurred. Artist ' + data.name + ' could not be listed.')
+  try:
+    # artist=Artist(
+    #     name = request.form['name'],
+    #     city = request.form['city'],
+    #     state = request.form['state'],
+    #     phone = request.form['phone'],
+    #     facebook_link = request.form['facebook_link'],
+    #     genres = request.form.getlist('genres')
+    #     )
+    form = ArtistForm(request.form)
+    print(f"form validate result: {form.validate()}")
+    if form.validate():
+      artist = Artist(name=form.name.data,
+                      city=form.city.data, state=form.state.data,
+                      phone=form.phone.data, genres=form.genres.data,
+                      facebook_link=form.facebook_link.data,
+                      seeking_description=form.seeking_description.data,
+                      image_link=form.image_link.data,
+                      seeking_venue=form.seeking_venue.data)
+      print(f"genres name : {artist.genres}")
+      db.session.add(artist)
+      db.session.commit()
+    # on successful db insert, flash success
+      flash('Artist ' + request.form['name'] + ' was successfully listed!')
+    else:
+      errorMessage = "Errors in the following fields: "
+      for error in form.errors: errorMessage += error + " "
+      flash(errorMessage)
+  # add duplication check on name
+  except sqlalchemy.exc.IntegrityError as e:
+    db.session.rollback()
+    print(f"Duplicate entry detected!\n {e}")
+    flash("Duplicate entry occurred: " + str(e))
+  except:
+    db.session.rollback()
+    print(sys.exc_info())
+    # TODO: on unsuccessful db insert, flash an error instead.
+    flash('An error occurred. Artist ' + request.form['name'] + ' could not be listed.')
+  finally:
+    db.session.close()
   return render_template('pages/home.html')
 
 
