@@ -298,7 +298,6 @@ def show_venue(venue_id):
     # Step 1: Get single venue object
     single_venue = Venue.query.get(venue_id)
     if single_venue is None:
-        # return redirect(url_for('not_found_error'))
         abort(404)
     # query association table solution:
     # https://stackoverflow.com/questions/41270319/how-do-i-query-an-association-table-in-sqlalchemy
@@ -358,7 +357,7 @@ def create_venue_submission():
     # TODO: insert form data as a new Venue record in the db, instead
     # TODO: modify data to be the data object returned from db insertion
     try:
-        # since seeking_talent is a boolean, so empty is not allowed
+        # seeking_talent is a boolean, so empty is not allowed
         # below does not work
         # seeking_talent = request.form['seeking_talent'],
         venue = Venue(
@@ -397,23 +396,26 @@ def delete_venue(venue_id):
 
     # BONUS CHALLENGE: Implement a button to delete a Venue on a Venue Page, have it so that
     # clicking that button delete it from the db then redirect the user to the homepage
+    '''
+    :param venue_id:
+    Referenced from googling, Contains following features:
+    - Delete venue when red button on "/venues/<int:venue_id>" clicked on  templates/pages/show_venue.html
+    - Route gets fetched by Ajax. Javascript can be found under templates/layouts/main.html
+    - Communicate success or error with corresponding redirections and alerts
+    :return:
+    '''
     try:
         single_venue= db.session.query(Venue).get(venue_id)
         db.session.delete(single_venue)
         db.session.commit()
-        # flash('Venue ' + request.form['name'] + ' was successfully deleted!')
         flash('Successfully deleted the venue')
-
     except:
         db.session.rollback()
         print(sys.exc_info())
         return jsonify({'success': False})
-        # flash('An error occurred: Venue ' + request.form['name'] + ' could not be deleted')
         flash('An error occurred when trying to delete the venue')
-
     finally:
         db.session.close()
-    # return redirect(url_for('index'))
     return jsonify({ 'success': True })
 
 
@@ -562,20 +564,19 @@ def show_artist(artist_id):
     # single_artist = list(filter(lambda d: d['id'] == artist_id, [data1, data2, data3]))[0]
     # single_artist=Artist.query.filter_by(id=artist_id).all()[0]
     single_artist = Artist.query.get(artist_id)
-    # Get Past Shows
+    # Get Past Shows, use join
     single_artist.past_shows = (db.session.query(
         Venue.id.label("venue_id"),
         Venue.name.label("venue_name"),
         Venue.image_link.label("venue_image_link"),
-        Show)
+        Show).join(Venue)
         .filter(Show.c.Artist_id == artist_id)
-        .filter(Show.c.Venue_id == Venue.id)
         .filter(Show.c.start_time <= datetime.now())
         .all())
 # print(f"past show is {single_artist.past_shows}")
 # Get Number of past Shows
     single_artist.past_shows_count = len(single_artist.past_shows)
-    # Get Upcomming Shows
+    # Get Upcomming Shows, use filter
     single_artist.upcoming_shows = (db.session.query(
             Venue.id.label("venue_id"),
             Venue.name.label("venue_name"),
@@ -595,7 +596,6 @@ def show_artist(artist_id):
 #  ----------------------------------------------------------------
 @app.route('/artists/<int:artist_id>/edit', methods=['GET'])
 def edit_artist(artist_id):
-    form = ArtistForm()
 # artist={
 #   "id": 4,
 #   "name": "Guns N Petals",
@@ -610,6 +610,7 @@ def edit_artist(artist_id):
 #   "image_link": "https://images.unsplash.com/photo-1549213783-8284d0336c4f?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=300&q=80"
 # }
 # TODO: populate form with fields from artist with ID <artist_id>
+    form = ArtistForm()
     artist = Artist.query.get(artist_id)
 # Pre Fill form with data
     form.name.data = artist.name
