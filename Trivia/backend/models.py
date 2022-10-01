@@ -4,7 +4,10 @@ from flask_sqlalchemy import SQLAlchemy
 import json
 
 database_name = 'trivia'
-database_path = 'postgresql://{}/{}'.format('localhost:5432', database_name)
+# database_path = 'postgresql://{}/{}'.format('localhost:5432', database_name)
+database_path = "postgresql://{}:{}@{}/{}".format(
+    "student", "student", "localhost:5432", database_name
+)
 
 db = SQLAlchemy()
 
@@ -76,3 +79,5 @@ class Category(db.Model):
             'id': self.id,
             'type': self.type
             }
+    def __repr__(self):
+        return f'<My Category {self.id}: {self.type}>'

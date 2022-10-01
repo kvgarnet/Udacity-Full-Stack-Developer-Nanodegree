@@ -7,7 +7,25 @@ import random
 from models import setup_db, Question, Category
 
 QUESTIONS_PER_PAGE = 10
-
+def paginate_display(request,queries):
+    formatted_display = [query.format() for query in queries]
+    #set defalut value for variable 'page' if param "page" NOT sent
+    #in request's args
+    page = request.args.get("page", 1, type=int)
+    if request.args.get("page"):
+        start = (page - 1) * QUESTIONS_PER_PAGE
+        end = start + QUESTIONS_PER_PAGE
+        return formatted_display[start:end]
+    #display all
+    return formatted_display
+#embed current_category type name in each question
+def get_current_category(queries):
+    current_category_question_lst=[]
+    for q in queries:
+        d = q
+        d['current_category'] = Category.query.filter(Category.id == q.get('category')).one_or_none().type
+        current_category_question_lst.append(d)
+    return current_category_question_lst
 def create_app(test_config=None):
     # create and configure the app
     app = Flask(__name__)
@@ -16,10 +34,21 @@ def create_app(test_config=None):
     """
     @TODO: Set up CORS. Allow '*' for origins. Delete the sample route after completing the TODOs
     """
+    CORS(app)
 
     """
     @TODO: Use the after_request decorator to set Access-Control-Allow
     """
+
+    @app.after_request
+    def after_request(response):
+        response.headers.add(
+            "Access-Control-Allow-Headers", "Content-Type,Authorization,true"
+        )
+        response.headers.add(
+            "Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS"
+        )
+        return response
 
     """
     @TODO:
@@ -27,6 +56,20 @@ def create_app(test_config=None):
     for all available categories.
     """
 
+    @app.route('/categories')
+    def get_categories():
+        try:
+            categories = Category.query.order_by('id').all()
+        except:
+            abort(422)
+        # if categories not found
+        if not categories:
+            abort(404)
+        # else return
+        return jsonify({
+            'success': True,
+            'categories': paginate_display(request,categories)
+        })
 
     """
     @TODO:
@@ -40,6 +83,29 @@ def create_app(test_config=None):
     ten questions per page and pagination at the bottom of the screen for three pages.
     Clicking on the page numbers should update the questions.
     """
+
+    @app.route('/questions')
+    def get_questions():
+        try:
+            questions = Question.query.order_by(Question.id).all()
+            categories = Category.query.order_by(Category.id).all()
+        except:
+            abort(422)
+        # Paginate list of questions and make sure it is a valid page
+        questions_paginated = paginate_display(request, questions)
+
+        if not questions_paginated:
+            abort(404)
+        # else return
+        # question: current_category should be not be returned on top level
+        # better to be embedded in each question's dictionary?
+        return jsonify({
+            'success': True,
+            'questions': get_current_category(questions_paginated),
+            'totalQuestions': len(questions),
+            'categories': paginate_display(request,categories),
+            'current_category': None
+        })
 
     """
     @TODO:
