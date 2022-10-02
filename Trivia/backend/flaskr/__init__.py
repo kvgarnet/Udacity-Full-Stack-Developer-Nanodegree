@@ -9,8 +9,7 @@ from models import setup_db, Question, Category
 QUESTIONS_PER_PAGE = 10
 def paginate_display(request,queries):
     formatted_display = [query.format() for query in queries]
-    #set defalut value for variable 'page' if param "page" NOT sent
-    #in request's args
+    #set defalut for  if param "page" NOT sent via request's args
     page = request.args.get("page", 1, type=int)
     if request.args.get("page"):
         start = (page - 1) * QUESTIONS_PER_PAGE
@@ -97,7 +96,7 @@ def create_app(test_config=None):
         if not questions_paginated:
             abort(404)
         # else return
-        # question: current_category should be not be returned on top level
+        # TBD: current_category should be not be returned on top level
         # better to be embedded in each question's dictionary?
         return jsonify({
             'success': True,
@@ -114,6 +113,32 @@ def create_app(test_config=None):
     TEST: When you click the trash icon next to a question, the question will be removed.
     This removal will persist in the database and when you refresh the page.
     """
+    @app.route('/questions/<question_id>', methods=['DELETE'])
+    def delete_question(question_id):
+        error = False
+        question = Question.query.filter(Question.id == question_id).one_or_none()
+        if question is None:
+            abort(404)
+        try:
+            question.delete()
+            questions = Question.query.order_by('id').all()
+            question_page_lst = paginate_display(request, questions)
+            total_questions = len(Question.query.all())
+        except:
+            question.rollback()
+            print(sys.exc_info())
+            error = True
+        finally:
+            question.close()
+        if error:
+            return abort(422)
+        else:
+            return jsonify({
+                'success': True,
+                'deleted_question_id': question_id,
+                'questions': question_page_lst,
+                'total_questions': total_questions
+            })
 
     """
     @TODO:
@@ -125,6 +150,36 @@ def create_app(test_config=None):
     the form will clear and the question will appear at the end of the last page
     of the questions list in the "List" tab.
     """
+
+    @app.route('/questions', methods=['POST'])
+    def post_question():
+        body = request.get_json()
+        question = Question(
+            question=body.get('question', None),
+            answer=body.get('answer', None),
+            difficulty=body.get('difficulty', None),
+            category = body.get('category', None)
+        )
+        if not (question and answer and difficulty and category):
+            abort(422)
+        try:
+            question.insert()
+            questions = Question.query.order_by('id').all()
+            questions_page_lst = paginate_display(request,questions)
+            total_questions = len(Question.query.all())
+            return jsonify({
+                'success': True,
+                'new_question_id': question.id,
+                'category': question.category,
+                'questions': questions_page_lst,
+                'total_questions': total_questions
+            })
+        except:
+            question.rollback()
+            print(sys.exc_info())
+            return abort(422)
+        finally:
+            question.close()
 
     """
     @TODO:
