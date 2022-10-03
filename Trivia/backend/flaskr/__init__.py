@@ -116,29 +116,28 @@ def create_app(test_config=None):
     @app.route('/questions/<question_id>', methods=['DELETE'])
     def delete_question(question_id):
         error = False
-        question = Question.query.filter(Question.id == question_id).one_or_none()
-        if question is None:
-            abort(404)
+        question = Question.query.get(question_id)
+        if not question:
+            abort(404, {'message': 'Question with id {} does not exist.'.format(question_id)})
+
         try:
             question.delete()
             questions = Question.query.order_by('id').all()
             question_page_lst = paginate_display(request, questions)
             total_questions = len(Question.query.all())
-        except:
-            question.rollback()
-            print(sys.exc_info())
-            error = True
-        finally:
-            question.close()
-        if error:
-            return abort(422)
-        else:
             return jsonify({
                 'success': True,
                 'deleted_question_id': question_id,
                 'questions': question_page_lst,
                 'total_questions': total_questions
             })
+        except:
+            question.rollback()
+            print(sys.exc_info())
+            return abort(422)
+        finally:
+            question.close()
+
 
     """
     @TODO:
@@ -154,14 +153,19 @@ def create_app(test_config=None):
     @app.route('/questions', methods=['POST'])
     def post_question():
         body = request.get_json()
-        question = Question(
-            question=body.get('question', None),
-            answer=body.get('answer', None),
-            difficulty=body.get('difficulty', None),
-            category = body.get('category', None)
-        )
+        question = body.get('question', None)
+        answer = body.get('answer', None)
+        difficulty = body.get('difficulty', None)
+        category = body.get('category', None)
+
         if not (question and answer and difficulty and category):
             abort(422)
+
+        question = Question(
+            question=question,
+            answer=answer,
+            difficulty=difficulty,
+            category = category)
         try:
             question.insert()
             questions = Question.query.order_by('id').all()
@@ -196,15 +200,11 @@ def create_app(test_config=None):
     def search_questions():
         search_term = request.get_json().get('search', '')
         like_search = f'%{search_term}%'
-        questions = Question.query.order_by(Question.id).filter(Question.question.ilike(like_search))
-        print("\n~~~~~~~~~~~~~~~")
+        questions = Question.query.order_by(Question.id).filter(Question.question.ilike(like_search)).all()
         print(f"search term: {search_term}")
-        print("~~~~~~~~~~~~~~~")
-        # if 'page' is set in URL, then display in pages
-        questions_page_lst = paginate_display(request, questions)
-        if len(questions_page_lst) == 0:
+        if len(questions) == 0:
             abort(404)
-        # else display all  matched
+        questions_page_lst = paginate_display(request, questions)
         return jsonify({"questions": questions_page_lst,
                         "success": True,
                         "match_questions_no": len(questions_page_lst),
@@ -219,6 +219,20 @@ def create_app(test_config=None):
     categories in the left column will cause only questions of that
     category to be shown.
     """
+
+    @app.route('/categories/<int:category_id>/questions', methods=['GET'])
+    def get_questions_per_category(category_id):
+        print(f"cat id:{category_id}")
+        questions = Question.query.order_by(Question.id).filter(Question.category == category_id).all()
+        if len(questions) == 0:
+            abort(404)
+        questions_page_lst = paginate_display(request, questions)
+        return jsonify({
+                        "success": True,
+                        "questions": questions_page_lst,
+                        "match_questions_no": len(questions_page_lst),
+                        'current_category': category_id
+                        })
 
     """
     @TODO:
