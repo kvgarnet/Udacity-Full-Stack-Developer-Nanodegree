@@ -24,11 +24,12 @@ def get_current_category(queries):
         q['current_category'] = Category.query.get(q.get('category')).type
         current_category_question_lst.append(q)
     return current_category_question_lst
+#format categories output based on frontend requirement
 def format_categories(queries):
-    ret_category = {}
+    format_category = {}
     for c in queries:
-        ret_category[str(c.id)] = c.type
-    return ret_category
+        format_category[str(c.id)] = c.type
+    return format_category
 
 
 def create_app(test_config=None):
@@ -231,6 +232,7 @@ def create_app(test_config=None):
     def get_questions_per_category(category_id):
         print(f"cat id:{category_id}")
         questions = Question.query.order_by(Question.id).filter(Question.category == category_id).all()
+        print(f"question per category is: {questions}")
         if len(questions) == 0:
             abort(404)
         questions_page_lst = paginate_display(request, questions)
@@ -294,7 +296,15 @@ def create_app(test_config=None):
             "error": 404,
             "message": "Resource Not Found"
         }), 404
-
+    @app.errorhandler(405)
+    def method_not_allowed(error):
+        return jsonify(
+            {
+                'success': False,
+                'error': 405,
+                'message': "Method not allowed"
+            }
+        ),405
     @app.errorhandler(422)
     def error_unprocessable(error):
         return jsonify({
@@ -302,6 +312,7 @@ def create_app(test_config=None):
             "error": 422,
             "message": "Unprocessable Entity"
         }), 422
+
     @app.errorhandler(500)
     def server_internal_error(error):
         return jsonify({
