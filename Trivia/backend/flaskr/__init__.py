@@ -24,6 +24,13 @@ def get_current_category(queries):
         q['current_category'] = Category.query.get(q.get('category')).type
         current_category_question_lst.append(q)
     return current_category_question_lst
+def format_categories(queries):
+    ret_category = {}
+    for c in queries:
+        ret_category[str(c.id)] = c.type
+    return ret_category
+
+
 def create_app(test_config=None):
     # create and configure the app
     app = Flask(__name__)
@@ -66,7 +73,8 @@ def create_app(test_config=None):
         # else return
         return jsonify({
             'success': True,
-            'categories': paginate_display(request,categories)
+            'categories': format_categories(categories)
+            # 'categories': paginate_display(request, categories)
         })
 
     """
@@ -100,8 +108,9 @@ def create_app(test_config=None):
         return jsonify({
             'success': True,
             'questions': get_current_category(questions_paginated),
-            'totalQuestions': len(questions),
-            'categories': [category.format() for category in categories],
+            'total_questions': len(questions),
+            'categories': format_categories(categories),
+            # 'categories': [category.format() for category in categories],
             'current_category': None
         })
 
@@ -156,16 +165,15 @@ def create_app(test_config=None):
         answer = body.get('answer', None)
         difficulty = body.get('difficulty', None)
         category = body.get('category', None)
-
+        # Check if required fields submitted
         if not (question and answer and difficulty and category):
             abort(422)
-
-        question = Question(
-            question=question,
-            answer=answer,
-            difficulty=difficulty,
-            category = category)
         try:
+            question = Question(
+                question=question,
+                answer=answer,
+                difficulty=difficulty,
+                category=category)
             question.insert()
             questions = Question.query.order_by('id').all()
             questions_page_lst = paginate_display(request,questions)
@@ -197,16 +205,16 @@ def create_app(test_config=None):
 
     @app.route('/questions/search', methods=['POST'])
     def search_questions():
-        search_term = request.get_json().get('search', '')
+        search_term = request.get_json().get('searchTerm', '')
         print(f"search item is: {search_term}")
-        like_search = f'%{search_term}%'
-        questions = Question.query.order_by(Question.id).filter(Question.question.ilike(like_search)).all()
+        ilike_search = f'%{search_term}%'
+        questions = Question.query.order_by(Question.id).filter(Question.question.ilike(ilike_search)).all()
         if len(questions) == 0:
             abort(404)
         questions_page_lst = paginate_display(request, questions)
-        return jsonify({"questions": get_current_category(questions_page_lst),
-                        "success": True,
-                        "match_questions_no": len(questions_page_lst),
+        return jsonify({"success": True,
+                        "questions": get_current_category(questions_page_lst),
+                        "total_questions": len(questions_page_lst),
                         'current_category': None
                         })
 
@@ -229,7 +237,7 @@ def create_app(test_config=None):
         return jsonify({
                         "success": True,
                         "questions": questions_page_lst,
-                        "match_questions_no": len(questions_page_lst),
+                        "total_questions": len(questions_page_lst),
                         'current_category': category_id
                         })
 
@@ -245,7 +253,7 @@ def create_app(test_config=None):
     and shown whether they were correct or not.
     """
 
-    @app.route('/quiz', methods=['POST'])
+    @app.route('/quizzes', methods=['POST'])
     def get_quiz_questions():
         body = request.get_json()
         if not ('quiz_category' in body and 'previous_questions' in body):
@@ -254,10 +262,12 @@ def create_app(test_config=None):
         previous_questions = body.get('previous_questions', None)
         print(f"category is: {category}")
         print(f"pre question is: {previous_questions}")
-
-        questions = Question.query.order_by(Question.id).filter_by(category = str((category['id'])))\
+        if category['type'] == 'click':
+            questions = Question.query.order_by(Question.id).filter(Question.id.notin_(previous_questions)).all()
+        else:
+            questions = Question.query.order_by(Question.id).filter_by(category = str((category['id'])))\
                     .filter(Question.id.notin_(previous_questions)).all()
-        print(f"questions is {questions}")
+        # print(f"questions is {questions}")
         quiz_question=random.choice(questions).format() if questions else None
         return jsonify({"question": quiz_question,
                         "success": True
@@ -292,6 +302,13 @@ def create_app(test_config=None):
             "error": 422,
             "message": "Unprocessable Entity"
         }), 422
+    @app.errorhandler(500)
+    def server_internal_error(error):
+        return jsonify({
+            "success": False,
+            "error": 500,
+            "message": "Server Internal Error"
+        }), 500
 
     return app
 

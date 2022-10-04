@@ -84,7 +84,7 @@ class QuestionView extends Component {
 
   submitSearch = (searchTerm) => {
     $.ajax({
-      url: `/questions`, //TODO: update request URL
+      url: `/questions/search`, //TODO: update request URL. DONE: update url to match backend route endpoint
       type: 'POST',
       dataType: 'json',
       contentType: 'application/json',
