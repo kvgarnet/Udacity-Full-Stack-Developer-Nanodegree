@@ -93,7 +93,7 @@ http://127.0.0.1:5000/
 - Fetches a dictionary of categories in which the keys are the ids and the value is the corresponding string of the category
 - Request Arguments: None
 - Returns: An dict object with key "categories" containing:
-  - an dictionary as value with:
+  - an dictionary with below key:value pairs:
     - "id": String
     - "type": String 
 
@@ -126,7 +126,8 @@ response
     - "questions": list of dict 
     - "total_questions": integer
     - "success": boolean
-fetch example:
+  
+example:
 ```
  curl "http://localhost:5000/questions?page=2" 
  ```
@@ -176,7 +177,8 @@ response
     - "new_question_id": integer
     - "total_questions": integer
     - "success": boolean
-fetch example 
+  
+example 
 ```
 curl localhost:5000/questions -X POST -d '{"question":"what is your favorite sport?","answer":"table tennis","category":2,"difficulty":1}' -H "Content-Type:application/json"
 ```
@@ -252,7 +254,7 @@ response
 ### POST '/questions/search'
 - Fetches a list of questions for a given search term among all categories paginated with 10 questions per page
 - Request Arguments:
-  - Query string params: Page number as Integer (optional - defaults to page = 1)
+  - Query string params: Page number as Integer (optional)
   - Body: JSON object with "search_tern": String
 ```
 {
@@ -344,7 +346,7 @@ response
 ```
 {
   "previous_questions":[],
-  "quiz_category":{"type":null,"id":0}
+  "quiz_category":{"type":"click","id":0}
 }
 ```
 - Returns: 

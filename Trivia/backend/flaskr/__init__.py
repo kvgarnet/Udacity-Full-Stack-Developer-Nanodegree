@@ -9,13 +9,14 @@ from models import setup_db, Question, Category
 QUESTIONS_PER_PAGE = 10
 def paginate_display(request,queries):
     formatted_display = [query.format() for query in queries]
-    #set defalut for  if param "page" NOT sent via request's args
+    #set default value if param "page" NOT sent via request's args
     page = request.args.get("page", 1, type=int)
+    # if "page' sent via request args , display paginated
     if request.args.get("page"):
         start = (page - 1) * QUESTIONS_PER_PAGE
         end = start + QUESTIONS_PER_PAGE
         return formatted_display[start:end]
-    #display all
+    # else,display all
     return formatted_display
 #embed current_category type in each question
 def get_current_category(queries):
@@ -92,6 +93,8 @@ def create_app(test_config=None):
     ten questions per page and pagination at the bottom of the screen for three pages.
     Clicking on the page numbers should update the questions.
     """
+    # currentCategory for this endpoint can be None for all questions
+    # https: // knowledge.udacity.com / questions / 82424
 
     @app.route('/questions')
     def get_questions():
