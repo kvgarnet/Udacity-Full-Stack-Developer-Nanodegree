@@ -55,7 +55,10 @@ export FLASK_APP=flaskr
 export FLASK_ENV=development
 flask run
 ```
-
+for flask version 2.2 +, just run
+```
+flask --app flaskr --debug run
+```
 Setting the `FLASK_ENV` variable to `development` will detect file changes and restart the server automatically.
 
 Setting the `FLASK_APP` variable to `flaskr` directs flask to use the `flaskr` directory and the `__init__.py` file to find the application. 
