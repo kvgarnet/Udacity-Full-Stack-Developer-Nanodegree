@@ -5,7 +5,7 @@ from flask_sqlalchemy import SQLAlchemy
 
 from flaskr import create_app
 from models import setup_db, Question, Category
-
+from settings import TEST_DB_NAME, DB_USER, DB_PASSWORD
 
 class TriviaTestCase(unittest.TestCase):
     """This class represents the trivia test case"""
@@ -14,9 +14,9 @@ class TriviaTestCase(unittest.TestCase):
         """Define test variables and initialize app."""
         self.app = create_app()
         self.client = self.app.test_client
-        self.database_name = "trivia_test"
+        self.database_name = TEST_DB_NAME
         self.database_path = "postgresql://{}:{}@{}/{}".format(
-            "student", "student", "localhost:5432", self.database_name)
+DB_USER,DB_PASSWORD, "localhost:5432", self.database_name)
         setup_db(self.app, self.database_path)
 
         self.new_question = {"question": "what is your name", "answer": "Neil Gaiman", "category": 2,"difficulty": 1}
@@ -27,7 +27,7 @@ class TriviaTestCase(unittest.TestCase):
             self.db.init_app(self.app)
             # create all tables
             self.db.create_all()
-    
+
     def tearDown(self):
         """Executed after reach test"""
         pass
